@@ -19,10 +19,16 @@ else:
         return pit.Pit.get(*args, **kwargs)
 
 class AbstractNotificationObserver(object):
+    """Abstract class for observer
+    """
     def update(self, event):
+        """Notify new event information to observer
+        """
         raise NotImplementedError
 
 class AbstractNotificationPublisher(object):
+    """Abstract class for publisher
+    """
     def register_observer(self, observer):
         raise NotImplementedError
 
@@ -30,14 +36,22 @@ class AbstractNotificationPublisher(object):
         raise NotImplementedError
 
     def notify(self, event):
+        """Use registered observer class to do actual notify job
+        """
         raise NotImplementedError
 
 class NotificationPublisher(AbstractNotificationPublisher):
+    """Implemetation of abstract publisher
+    """
     def __init__(self, target_event_name_list):
+        # be used to communicate with supervisord server
         self.stdin = sys.stdin
         self.stdout = sys.stdout
         self.stderr = sys.stderr
+
+        # observer list
         self.observer_list = []
+        # event name list that want to listen to 
         self.target_event_name_list = target_event_name_list
 
     def register_observer(self, observer):
@@ -51,21 +65,34 @@ class NotificationPublisher(AbstractNotificationPublisher):
             observer.update(event)
         
     def runforever(self):
+        """another listenter implementation, used to 
+        listen to event emmitted from supervisord server
+        """
+        
+        # infinite loop to listen to supervisord event        
         while True:
             headers, payload = childutils.listener.wait(self.stdin, self.stdout)
 
             if headers['eventname'] not in self.target_event_name_list:
-                 childutils.listener.ok(self.stdout)
-                 continue
-
-            pheaders, pdata = childutils.eventdata(payload+'\n')
-            if int(pheaders['expected']):
+                # if not target event, just ignore
                 childutils.listener.ok(self.stdout)
                 continue
+
+            pheaders, pdata = childutils.eventdata(payload+'\n')
+            # 'PROCESS_STATE_EXITED' event has expected field, other event type has no this filed,
+            # so just set to None
+            is_expected = pheaders.get('expected', None)
+            if is_expected:
+                if int(is_expected):
+                    # when is a expected process exited, just igore
+                    childutils.listener.ok(self.stdout)
+                    continue
 
             self.stderr.write('{} happened, notification\n'.format(headers['eventname']))
             self.stderr.flush()
 
+            # collect event informations, header in differe event will be different, 
+            # here just use a general dictionary
             event = {'processname': pheaders.get('processname', None),
                      'groupname': pheaders.get('groupname', None),
                      'pid': pheaders.get('pid', None),
@@ -74,15 +101,19 @@ class NotificationPublisher(AbstractNotificationPublisher):
                      'data': pdata}
             
             self.notify(event)
-            
+
+            # job of supervisord event listener is finished, send ok sign
             childutils.listener.ok(self.stdout)
     
 
 class HipchatObserver(AbstractNotificationObserver):
+    """Implementation of observer to notify with HipChat 
+    """
     def __init__(self):
         self.rooms = ['Kemono - Production Deploy Notification']
         self.color = 'green'
         self.is_notify = False
+        self.hip_chat = HypChat(self._get_token())
 
     def add_room(self, room_name):
         self.rooms.append(room_name)
@@ -91,16 +122,18 @@ class HipchatObserver(AbstractNotificationObserver):
         self.rooms.remove(room_name)
     
     def update(self, event):
-        h = HypChat(self._get_token())
-        
+        """use hitchat API to send message to specified rooms
+        """
         msg = self._build_msg(event)
         
         for room in self.rooms:
-            r = h.get_room(room)
+            r = self.hip_chat.get_room(room)
             r.message(msg, color=self.color, notify=self.is_notify)
 
     def _build_msg(self, event):
-        msg = u'Process %(processname)s in group %(groupname)s exited unexpectedly (pid %(pid)s) from state %(from_state)s at %(happened_at)s<br /><br />Data: %(data)s' % event
+        """build message for event with default HTML format of hipchat message
+        """
+        msg = u'Process %(processname)s in group %(groupname)s exited unexpectedly (pid %(pid)s) from state %(from_state)s at %(happened_at)s<br /><br />Error log:<br />%(data)s' % event
         return msg
         
     def _get_token(self):
