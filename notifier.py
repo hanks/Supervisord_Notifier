@@ -79,12 +79,14 @@ class NotificationPublisher(AbstractNotificationPublisher):
                 continue
 
             pheaders, pdata = childutils.eventdata(payload+'\n')
-            # 'PROCESS_STATE_EXITED' event has expected field, other event type has no this filed,
+            # 'PROCESS_STATE_EXITED' event has 'expected' field, other event type has no this filed,
             # so just set to None
             is_expected = pheaders.get('expected', None)
             if is_expected:
                 if int(is_expected):
-                    # when is a expected process exited, just igore
+                    # 1: expected 
+                    # 0: unexpected
+                    # when is a expected process exited, just ignore
                     childutils.listener.ok(self.stdout)
                     continue
 
@@ -151,7 +153,7 @@ def main(argv=sys.argv):
                          'listener\n')
         sys.stderr.flush()
         return
-
+    
     #'PROCESS_STATE_EXITED'
     crash_publisher = NotificationPublisher(['PROCESS_LOG_STDERR'])
     
