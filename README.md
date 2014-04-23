@@ -6,7 +6,7 @@ Use classic Observer Pattern to implement a simple supervisord PROCESS_LOG liste
 ## Why
 <a href="http://supervisord.org/">Supervisord</a> is an useful tool to manage background processes,  and it is used in my project heavily to control <a href="https://www.rabbitmq.com/">RabbitMQ</a> consumer processes. And when the process is crashed by some unexpected conditions, supervisord will record the traceback information to log file. The log info is good for us to solve the problems.  
 
-But the problem is now I always need to ssh to the remote server to find out the log file of the crashed process, and often after a long time that problem happened. It may create a great loss. The cause of these is no effective way to notify me, So I tried to create this simple script to send error log instantly to Hipchat(An Instance Message Application) and mail and other places.
+But the problem is now I always need to ssh to the remote server to find out the log file of the crashed process, and often after a long time that problem happened. It may create a great loss. The cause of these is no effective way to notify me, So I tried to create this simple script to send error log instantly to Hipchat(An Instant Message Application) and mail and other places.
 
 ## Demo
 ![alt text][demo]
