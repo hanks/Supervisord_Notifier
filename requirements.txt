@@ -1,0 +1,3 @@
+supervisor==3.1.3
+hypchat==0.18
+pit==0.3
